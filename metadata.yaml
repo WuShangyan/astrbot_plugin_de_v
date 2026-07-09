@@ -1,0 +1,10 @@
+name: astrbot_plugin_de_v
+author: wushangyan
+version: 0.1.0
+desc: 极乐迪斯科模式——AI 在回复前以 24 个"思维技能"口吻说一句话短评。开启后每条 LLM 回复前会多一行 [技能中文名] [成功/失败] - 一句话 内脑独白。
+repo: https://github.com/wushangyan/astrbot_plugin_de_v
+tags:
+  - roleplay
+  - dialogue
+  - disco-elysium
+  - chat

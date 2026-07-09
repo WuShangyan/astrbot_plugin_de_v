@@ -1,0 +1,30 @@
+{
+  "default_de_mode": {
+    "description": "新会话/新群聊的 DE 模式默认开关状态。私聊与未记录过的群聊使用此默认值。",
+    "type": "bool",
+    "default": false,
+    "hint": "关闭则群组/私聊默认走普通模式，群管理员需 /de on 才会启用"
+  },
+  "skill_line_max_length": {
+    "description": "回复中技能行（[技能名] [成功/失败] - 一句话）的最大允许字符数。超出时被装饰器截断，避免 LLM 写了长篇大论破坏节奏。",
+    "type": "int",
+    "default": 120,
+    "hint": "Disco Elysium 原作风偏短句，建议 80-150"
+  },
+  "auto_prepend_if_missing": {
+    "description": "若 LLM 输出中没有匹配 [技能名] [成功/失败] 的行，是否自动选一个最贴近的技能作为补全。v1 此选项为 no-op（保留以便未来接入路由器时启用）。",
+    "type": "bool",
+    "default": false
+  },
+  "banner_on_toggle": {
+    "description": "执行 /de on 和 /de off 时是否显示迪斯科风格的开关横幅（取自 de-toggle SKILL.md）。关闭后只显示一行简短状态。",
+    "type": "bool",
+    "default": true
+  },
+  "dm_mode": {
+    "description": "私聊消息如何处理 DE 模式：off=始终关闭；inherit=跟随 default_de_mode；per_user=每个用户独立开关（仍需管理员在群内 /de on 时才能真正开启，全局禁用优先）。",
+    "type": "string",
+    "default": "inherit",
+    "options": ["off", "inherit", "per_user"]
+  }
+}
