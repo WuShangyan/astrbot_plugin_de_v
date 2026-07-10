@@ -324,7 +324,17 @@ class DEPlugin(Star):
 
     @filter.command("de")
     async def de_root(self, event: AstrMessageEvent):
-        """Fallback for bare `/de` — echo help so users get feedback."""
+        """Bare `/de` shows help. `/de <sub>` is handled by the specific
+        subcommand handler (de_on, de_off, ...) — don't double-fire help here.
+
+        AstrBot's `@filter.command("de")` prefix-matches every `/de <sub>`
+        (its filter accepts `message_str.startswith("de ")`), so without this
+        guard `de_root` would also run for `/de off` etc. and emit HELP_TEXT
+        on top of the real subcommand's reply.
+        """
+        msg = re.sub(r"\s+", " ", event.get_message_str().strip())
+        if msg != "de":
+            return  # a subcommand handler will (or already did) take over
         yield event.plain_result(HELP_TEXT)
 
     @filter.command("de on")
