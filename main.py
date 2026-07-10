@@ -90,9 +90,11 @@ def _build_banner_off() -> str:
     )
 
 # Matches a skill line at the start of a Plain text.
-# Tolerates: leading whitespace, half/full-width dashes, 2-12 char skill name.
+# Tolerates: leading whitespace, half/full-width BRACKETS and DASHES, 2-12 char skill name.
+# Many Chinese-tuned LLMs substitute full-width 【】 for [] in DE-style output despite
+# the system prompt asking for half-width — accept both so the line is always extracted.
 SKILL_LINE_RE = re.compile(
-    r"^\s*\[([^\]\s]{2,12})\]\s*\[(成功|失败)\]\s*[-—–]\s*(.+?)\s*$"
+    r"^\s*[\[【]([^\]\s】]{2,12})[\]】]\s*[\[【](成功|失败)[\]】]\s*[-—–]\s*(.+?)\s*$"
 )
 
 HELP_TEXT = """\
@@ -327,7 +329,13 @@ class DEPlugin(Star):
                 m = SKILL_LINE_RE.match(first_line)
                 if m:
                     target_idx = idx
-                    matched_line = m.group(0).strip()
+                    # Reconstruct in half-width brackets regardless of whether
+                    # the LLM emitted half-width [] or full-width 【】 — keeps the
+                    # output format consistent across replies.
+                    cn_name = m.group(1).strip()
+                    tag = m.group(2).strip()
+                    comment = m.group(3).strip()
+                    matched_line = f"[{cn_name}] [{tag}] - {comment}"
                     break
         if target_idx is None or matched_line is None:
             return
