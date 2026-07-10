@@ -89,13 +89,44 @@ def _build_banner_off() -> str:
         "░▒▓██████████████████████████████████▓▒░"
     )
 
-# Matches a skill line at the start of a Plain text.
-# Tolerates: leading whitespace, half/full-width BRACKETS and DASHES, 2-12 char skill name.
-# Many Chinese-tuned LLMs substitute full-width 【】 for [] in DE-style output despite
-# the system prompt asking for half-width — accept both so the line is always extracted.
+# Matches a skill line at the start of a Plain text — after BRACKET NORMALIZATION.
+# Tolerates: leading whitespace, half/full-width dashes, 2-12 char skill name.
+#
+# Chinese-tuned LLMs sometimes substitute full-width brackets for [] despite the
+# system prompt asking for half-width. There are at least three visually-similar
+# bracket pairs in common use ([], 【】, ［］) and more (〔〕, 〖〗, 「」, …).
+# Rather than enumerate them all in the regex, we normalize the line to ASCII
+# half-width BEFORE matching, via _BRA_MAP. Adding a new bracket style is then a
+# one-line change to that table.
 SKILL_LINE_RE = re.compile(
-    r"^\s*[\[【]([^\]\s】]{2,12})[\]】]\s*[\[【](成功|失败)[\]】]\s*[-—–]\s*(.+?)\s*$"
+    r"^\s*\[([^\]\s]{2,12})\]\s*\[(成功|失败)\]\s*[-—–]\s*(.+?)\s*$"
 )
+
+# Chinese "[]"-like bracket pairs → ASCII half-width. Extend this map if you see
+# a new bracket style in the wild (the regex does not need to change).
+_BRA_MAP = str.maketrans({
+    "【": "[", "】": "]",   # black lenticular (U+3010 / U+3011)
+    "［": "[", "］": "]",   # fullwidth square   (U+FF3B / U+FF3D)
+    "〔": "[", "〕": "]",   # tortoise shell     (U+3014 / U+3015)
+    "〖": "[", "〗": "]",   # white tortoise     (U+3016 / U+3017)
+    "「": "[", "」": "]",   # corner             (U+300C / U+300D)
+    "『": "[", "』": "]",   # white corner       (U+300E / U+300F)
+})
+
+
+def _extract_skill_line(text: str) -> str | None:
+    """Try to extract a skill line from `text`. Returns a normalized
+    half-width `[cn] [tag] - comment` string, or None if no match.
+
+    Brackets in the input are normalized via _BRA_MAP before matching, so any
+    of the common Chinese "[]"-variants are accepted.
+    """
+    first_line = text.lstrip().split("\n", 1)[0].rstrip()
+    normalized = first_line.translate(_BRA_MAP)
+    m = SKILL_LINE_RE.match(normalized)
+    if not m:
+        return None
+    return f"[{m.group(1).strip()}] [{m.group(2).strip()}] - {m.group(3).strip()}"
 
 HELP_TEXT = """\
 极乐迪斯科模式 帮助
@@ -326,16 +357,10 @@ class DEPlugin(Star):
                 # end of string, but the LLM often appends the normal reply on
                 # the next line.
                 first_line = comp.text.lstrip().split("\n", 1)[0].rstrip()
-                m = SKILL_LINE_RE.match(first_line)
-                if m:
+                extracted = _extract_skill_line(first_line)
+                if extracted:
                     target_idx = idx
-                    # Reconstruct in half-width brackets regardless of whether
-                    # the LLM emitted half-width [] or full-width 【】 — keeps the
-                    # output format consistent across replies.
-                    cn_name = m.group(1).strip()
-                    tag = m.group(2).strip()
-                    comment = m.group(3).strip()
-                    matched_line = f"[{cn_name}] [{tag}] - {comment}"
+                    matched_line = extracted
                     break
         if target_idx is None or matched_line is None:
             return
