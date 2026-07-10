@@ -34,12 +34,12 @@ BANNER_ON = (
     "            复仇女神就在家中的镜子里；那便是她们的住址。\n"
     "          哪怕这世间最澄清的水，只要够深，也能让人沉溺。\n\n"
     "------------------------------------------------------------------------\n"
-    "  >>> 二十四个声音正在门后争吵... 技能们正在黑暗中涌动...     \n"
+    "  >>> 二十四个声音正在门后争吵... 有什么东西正在黑暗中涌动...     \n"
     "░▒▓██████████████████████████████████████████████████████████████████▓▒░"
 )
 BANNER_OFF = (
     "░▒▓██████████████████████████████████████████████████████████████████▓▒░\n"
-    "  >>> 舞台灯光熄灭。幕布落下。技能们沉沉睡去... \n"
+    "  >>> 舞台灯光熄灭。幕布落下。声音沉沉睡去... \n"
     "░▒▓██████████████████████████████████████████████████████████████████▓▒░"
 )
 
@@ -52,8 +52,8 @@ SKILL_LINE_RE = re.compile(
 HELP_TEXT = """\
 极乐迪斯科模式 帮助
 
-/de on     — 开启 DE 模式（当前群/私聊，仅管理员）
-/de off    — 关闭 DE 模式，仅管理员
+/de on     — 开启 DE 模式（当前群/私聊，所有人可用）
+/de off    — 关闭 DE 模式
 /de status — 查看当前会话 DE 模式状态
 /de list   — 列出全部 24 个技能
 /de help   — 显示本帮助
@@ -313,17 +313,21 @@ class DEPlugin(Star):
         result.chain = new_chain
 
     # ---------- slash commands ----------
+    # All /de commands are open to everyone. DE mode is an atmosphere toggle,
+    # not a privileged action — in a DM the single user is implicitly admin,
+    # and in a group anyone who wants the inner voices can flip them on/off.
+    # Group admins who want to lock this down can layer AstrBot's own
+    # command-scope permissions on top via platform config.
+    #
     # Subcommands are flat `@filter.command("de on")` rather than nested
-    # `@filter.command_group("de").command("on")` to avoid the documented
-    # AstrBot #2198 bug where permission_type doesn't propagate to subcommands.
+    # `@filter.command_group("de").command("on")` for cleaner routing.
 
     @filter.command("de")
-    async def de_root(self, event: AstrMessageEvent) -> None:
+    async def de_root(self, event: AstrMessageEvent):
         """Fallback for bare `/de` — echo help so users get feedback."""
         yield event.plain_result(HELP_TEXT)
 
     @filter.command("de on")
-    @filter.permission_type(filter.PermissionType.ADMIN)
     async def de_on(self, event: AstrMessageEvent):
         await self.state.set(self._resolve_key(event), True)
         if self.config.get("banner_on_toggle", True):
@@ -332,7 +336,6 @@ class DEPlugin(Star):
             yield event.plain_result("[ DE模式已开启 ]")
 
     @filter.command("de off")
-    @filter.permission_type(filter.PermissionType.ADMIN)
     async def de_off(self, event: AstrMessageEvent):
         await self.state.set(self._resolve_key(event), False)
         if self.config.get("banner_on_toggle", True):

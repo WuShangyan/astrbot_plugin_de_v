@@ -30,11 +30,13 @@ cp -r astrbot_plugin_de_v <AstrBot>/data/plugins/
 
 | 命令 | 权限 | 作用 |
 |------|------|------|
-| `/de on` | 管理员 | 开启当前群/私聊的 DE 模式 |
-| `/de off` | 管理员 | 关闭 DE 模式 |
+| `/de on` | 所有人 | 开启当前群/私聊的 DE 模式 |
+| `/de off` | 所有人 | 关闭 DE 模式 |
 | `/de status` | — | 查看当前会话状态 + 会话 key + 已加载技能数 |
 | `/de list` | — | 列出全部 24 个技能 |
 | `/de help` | — | 显示帮助 |
+
+> 如需在群里限定只有管理员能开关,可通过 AstrBot 自身的命令权限系统在平台层叠加限制。
 
 ## 配置(`_conf_schema.json`)
 
