@@ -12,9 +12,9 @@
     "hint": "Disco Elysium 原作风偏短句，建议 80-150"
   },
   "auto_prepend_if_missing": {
-    "description": "若 LLM 输出中没有匹配 [技能名] [成功/失败] 的行，是否自动选一个最贴近的技能作为补全。v1 此选项为 no-op（保留以便未来接入路由器时启用）。",
+    "description": "若 LLM 输出中没有匹配 [技能名] [成功/失败] 的行，是否自动随机选一个技能(从该技能的样例台词里抽一条)作为补全,强制保证每条回复都有技能行。true=强制输出(默认),false=只在 LLM 自己输出时才有。",
     "type": "bool",
-    "default": false
+    "default": true
   },
   "banner_on_toggle": {
     "description": "执行 /de on 和 /de off 时是否显示迪斯科风格的开关横幅（取自 de-toggle SKILL.md）。关闭后只显示一行简短状态。",

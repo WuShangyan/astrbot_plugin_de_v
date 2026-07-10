@@ -252,11 +252,13 @@ class DEPlugin(Star):
             "- 正常与用户对话，就像 NPC 听不到玩家的内在声音",
             "技能只是增强聊天的趣味性和沉浸感，不影响你的实际回复逻辑。",
             "",
-            "## 回复格式",
-            "若你认为本轮对话需要某种脑内声音介入，先输出技能行（独占一行）：",
+            "## 回复格式（硬性要求）",
+            "**每条回复的第一行必须是技能行**，格式如下：",
             "  [技能中文名] [成功/失败] - 一句话短评",
             "随后另起一行，再给出正常回复（不要加任何平台标签如 [Claude Code]）。",
-            "若本轮不需要技能介入，直接给出正常回复即可，不需要技能行。",
+            "",
+            "即使你判断本轮对话没有特别契合的技能，也要**硬选一个最接近**的，用它的语气说一句话——",
+            "这是氛围模拟，没有「该不该说」，只有「说得多不多」。哪怕是沉默的技能也要挤出一句。",
             "",
             "成功/失败判定：用户输入没有明显倾向时，更大概率返回「成功」；",
             "若能读到用户倾向则按倾向选择；少部分时候可与用户作对以增加趣味。",
@@ -276,7 +278,7 @@ class DEPlugin(Star):
                     f"TRIGGER when: {s['trigger']}"
                 )
             lines.append("")
-        lines.append("对照每条 TRIGGER when 选择最契合的技能；都不契合则跳过技能行直接回复。")
+        lines.append("对照每条 TRIGGER when 选择最契合的技能；如果都不契合,就随机挑一个最接近的(插件会兜底,确保每条回复都有技能行)。")
         return "\n".join(lines)
 
     def _render_skill_manifest(self) -> str:
@@ -363,17 +365,19 @@ class DEPlugin(Star):
                     matched_line = extracted
                     break
         if target_idx is None or matched_line is None:
+            # LLM did not output a skill line. If enforcement is enabled,
+            # fall back to a random skill + its sample text so the brackets
+            # always appear when DE mode is on.
+            if not self.config.get("auto_prepend_if_missing", True):
+                return
+            fallback = self._generate_fallback_skill_line()
+            if fallback is None:
+                return
+            result.chain.insert(0, Plain(self._truncate_skill_line(fallback)))
             return
 
         # Length cap: if the matched line is too long, truncate at the last " - ".
-        max_len = int(self.config.get("skill_line_max_length", 120))
-        if len(matched_line) > max_len:
-            cut = matched_line[:max_len]
-            dash = cut.rfind(" - ")
-            if dash > 0:
-                matched_line = cut[:dash] + " - …"
-            else:
-                matched_line = cut.rstrip() + " …"
+        matched_line = self._truncate_skill_line(matched_line)
 
         # Re-build the chain: prepend the skill line, then keep the original
         # Plain(s) with the matched line stripped.
@@ -390,6 +394,37 @@ class DEPlugin(Star):
             else:
                 new_chain.append(comp)
         result.chain = new_chain
+
+    def _truncate_skill_line(self, line: str) -> str:
+        """Apply the configured length cap to a skill line."""
+        max_len = int(self.config.get("skill_line_max_length", 120))
+        if len(line) <= max_len:
+            return line
+        cut = line[:max_len]
+        dash = cut.rfind(" - ")
+        if dash > 0:
+            return cut[:dash] + " - …"
+        return cut.rstrip() + " …"
+
+    def _generate_fallback_skill_line(self) -> str | None:
+        """Generate a fallback skill line when the LLM didn't emit one.
+
+        Picks a random skill and uses one of its sample lines (from the source
+        SKILL.md) as the short comment. The comment is in the skill's voice,
+        so the fallback still feels atmospheric even though it isn't tied to
+        the actual conversation content.
+        """
+        if not self.skills:
+            return None
+        skill = random.choice(self.skills)
+        tag = random.choice(["成功", "失败"])
+        samples = skill.get("samples") or []
+        if samples:
+            sample = random.choice(samples)
+            comment = sample["text"]
+        else:
+            comment = "……"
+        return f"[{skill['cn_name']}] [{tag}] - {comment}"
 
     # ---------- slash commands ----------
     # All /de commands are open to everyone. DE mode is an atmosphere toggle,
